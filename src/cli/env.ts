@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { Command } from "commander";
 import pc from "picocolors";
 
-const CONFIG_DIR = join(homedir(), ".config", "rowbound");
+const CONFIG_DIR = join(homedir(), ".config", "gtm-sheets");
 const ENV_FILE = join(CONFIG_DIR, ".env");
 
 export function getGlobalEnvPath(): string {
@@ -50,7 +50,7 @@ function maskValue(value: string): string {
 export function registerEnv(program: Command): void {
   const env = program
     .command("env")
-    .description("Manage API keys stored in ~/.config/rowbound/.env");
+    .description("Manage API keys stored in ~/.config/gtm-sheets/.env");
 
   env
     .command("set <key=value>")
@@ -59,7 +59,7 @@ export function registerEnv(program: Command): void {
       const eqIndex = pair.indexOf("=");
       if (eqIndex === -1) {
         console.error(
-          pc.red("Invalid format. Use: rowbound env set KEY=value"),
+          pc.red("Invalid format. Use: gtm-sheets env set KEY=value"),
         );
         process.exit(1);
       }
@@ -101,7 +101,7 @@ export function registerEnv(program: Command): void {
       const entries = readEnvFile();
       if (entries.size === 0) {
         console.log(pc.dim("No environment variables configured."));
-        console.log(pc.dim(`Run: rowbound env set API_KEY=your_key`));
+        console.log(pc.dim(`Run: gtm-sheets env set API_KEY=your_key`));
         return;
       }
       for (const [key, value] of entries) {

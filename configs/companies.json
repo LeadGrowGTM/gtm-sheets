@@ -1,0 +1,88 @@
+{
+  "version": "2",
+  "settings": {
+    "concurrency": 3,
+    "rateLimit": 10,
+    "retryAttempts": 2,
+    "retryBackoff": "exponential"
+  },
+  "tabs": {
+    "companies": {
+      "name": "companies",
+      "columns": {
+        "A": "company_name",
+        "B": "website",
+        "C": "company_linkedin_url",
+        "D": "industry",
+        "E": "employees",
+        "F": "city",
+        "G": "state",
+        "H": "homepage_email",
+        "I": "tech_stack",
+        "J": "recent_news",
+        "K": "buying_signal",
+        "L": "find_website_status"
+      },
+      "actions": [
+        {
+          "id": "find_website",
+          "name": "Find Website",
+          "type": "exec",
+          "target": "website",
+          "when": "{{row.website}} == ''",
+          "command": "spider-agent find-website --company '{{row.company_name}}' --location '{{row.city}}, {{row.state}}' --json",
+          "extract": "$.website",
+          "timeout": 60,
+          "onError": { "default": { "write": "❌" } }
+        },
+        {
+          "id": "homepage_email",
+          "name": "Homepage Email",
+          "type": "exec",
+          "target": "homepage_email",
+          "when": "{{row.homepage_email}} == '' && {{row.website}} != ''",
+          "command": "spider-agent find-email --url '{{row.website}}' --json",
+          "extract": "$.email",
+          "timeout": 60,
+          "onError": { "default": { "write": "❌" } }
+        },
+        {
+          "id": "tech_stack",
+          "name": "Tech Stack",
+          "type": "http",
+          "target": "tech_stack",
+          "when": "{{row.tech_stack}} == '' && {{row.website}} != ''",
+          "method": "GET",
+          "url": "https://api.builtwith.com/v21/api.json?KEY={{env.BUILTWITH_API_KEY}}&LOOKUP={{row.website}}",
+          "extract": "$.Results[0].Result.Paths[0].Technologies[*].Name",
+          "ifEmpty": "❌",
+          "onError": { "default": { "write": "❌" } }
+        },
+        {
+          "id": "recent_news",
+          "name": "Recent News",
+          "type": "http",
+          "target": "recent_news",
+          "when": "{{row.recent_news}} == '' && {{row.company_name}} != ''",
+          "method": "GET",
+          "url": "https://serpapi.com/search.json?engine=google&q={{row.company_name}}+news&num=3&api_key={{env.SERPAPI_KEY}}",
+          "extract": "$.news_results[0].title",
+          "ifEmpty": "❌",
+          "onError": { "default": { "write": "❌" } }
+        },
+        {
+          "id": "buying_signal",
+          "name": "Buying Signal",
+          "type": "exec",
+          "target": "buying_signal",
+          "when": "{{row.buying_signal}} == '' && {{row.company_name}} != ''",
+          "command": "lg-llm-runtime run buying_signal --input '{\"company_name\": \"{{row.company_name}}\", \"website\": \"{{row.website}}\", \"industry\": \"{{row.industry}}\"}'",
+          "extract": "$.signal",
+          "timeout": 90,
+          "onError": { "default": { "write": "❌" } }
+        }
+      ]
+    }
+  },
+  "actions": []
+}

@@ -1,10 +1,10 @@
 {
-  "name": "rowbound",
-  "version": "1.7.3",
-  "description": "Open-source CLI and MCP server for Google Sheets enrichment — waterfalls, conditions, HTTP API integrations",
+  "name": "gtm-sheets",
+  "version": "1.0.0",
+  "description": "LeadGrow GTM Sheets — Sheets-native enrichment, people-finding, and copy for normalized company lists",
   "type": "module",
   "bin": {
-    "rowbound": "./dist/cli/index.js"
+    "gtm-sheets": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -37,10 +37,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eliasstravik/rowbound.git"
+    "url": "https://github.com/LeadGrowGTM/gtm-sheets.git"
   },
-  "homepage": "https://github.com/eliasstravik/rowbound",
-  "bugs": "https://github.com/eliasstravik/rowbound/issues",
+  "homepage": "https://github.com/LeadGrowGTM/gtm-sheets",
+  "bugs": "https://github.com/LeadGrowGTM/gtm-sheets/issues",
   "engines": {
     "node": ">=22.0.0"
   },

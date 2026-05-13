@@ -12,7 +12,7 @@ import { registerStatus } from "./status.js";
 import { registerSync } from "./sync.js";
 import { registerWatch } from "./watch.js";
 
-// Load local .env first (higher priority), then global ~/.config/rowbound/.env
+// Load local .env first (higher priority), then global ~/.config/gtm-sheets/.env
 // dotenv never overwrites existing process.env, so shell vars always win
 dotenv.config();
 dotenv.config({ path: getGlobalEnvPath() });
@@ -23,9 +23,9 @@ const pkg = require("../../package.json") as { version: string };
 const program = new Command();
 
 program
-  .name("rowbound")
+  .name("gtm-sheets")
   .description(
-    "Open-source CLI for Google Sheets enrichment — waterfalls, conditions, HTTP API integrations",
+    "LeadGrow GTM Sheets — Sheets-native enrichment, people-finding, and copy generation",
   )
   .version(pkg.version);
 
