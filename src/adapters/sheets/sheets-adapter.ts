@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod/v4";
 import type {
   Adapter,
@@ -107,14 +109,40 @@ export function columnIndexToLetter(index: number): string {
 }
 
 /**
+ * Resolve the gws command to [binary, args_prefix].
+ * On Windows, npm CLIs are .cmd wrappers that can't be execFile'd without shell.
+ * Bypass the shell entirely by calling the underlying Node.js script directly.
+ */
+function resolveGwsCommand(): { bin: string; prefix: string[] } {
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA || "";
+    const gwsScript = join(
+      appData,
+      "npm",
+      "node_modules",
+      "@googleworkspace",
+      "cli",
+      "run-gws.js",
+    );
+    if (existsSync(gwsScript)) {
+      return { bin: process.execPath, prefix: [gwsScript] };
+    }
+  }
+  return { bin: "gws", prefix: [] };
+}
+
+const { bin: GWS_BIN, prefix: GWS_PREFIX } = resolveGwsCommand();
+
+/**
  * Run the gws CLI with the given arguments.
- * Uses execFile (not exec) to avoid shell injection.
+ * On Windows: calls node run-gws.js directly to avoid cmd.exe quoting issues with JSON.
+ * On Unix: calls gws directly via execFile.
  */
 export function runGws(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
-      "gws",
-      args,
+      GWS_BIN,
+      [...GWS_PREFIX, ...args],
       { maxBuffer: 50 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {
