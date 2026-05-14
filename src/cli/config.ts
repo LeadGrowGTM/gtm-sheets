@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import type { Command } from "commander";
 import { SheetsAdapter } from "../adapters/sheets/sheets-adapter.js";
 import { getTabConfig, resolveTabGid } from "../core/tab-resolver.js";
-import type { Action, ScriptDef, Source } from "../core/types.js";
+import type { Action, PipelineConfig, ScriptDef, Source } from "../core/types.js";
 import { type ValidationResult, validateConfig } from "../core/validator.js";
 import { bold, dim, error, warn } from "./format.js";
 
@@ -1084,6 +1085,119 @@ export function registerConfig(program: Command): void {
         } else {
           console.error(error("Failed to validate config:"), msg);
         }
+        process.exitCode = 1;
+      }
+    });
+
+  // rowbound config import <sheetId> <file> [--tab <name>]
+  configCmd
+    .command("import")
+    .description("Import a pipeline config from a local JSON file into a spreadsheet")
+    .argument("<sheetId>", "Google Sheets spreadsheet ID")
+    .argument("<file>", "Path to local JSON config file")
+    .option("--tab <name>", "Merge a single tab from the file into the spreadsheet's existing config")
+    .action(async (sheetId: string, file: string, opts: { tab?: string }) => {
+      const adapter = new SheetsAdapter();
+      const ref = { spreadsheetId: sheetId, sheetName: "Sheet1" };
+
+      let incoming: PipelineConfig;
+      try {
+        const raw = readFileSync(file, "utf-8");
+        incoming = JSON.parse(raw) as PipelineConfig;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(error(`Failed to read ${file}:`), msg);
+        process.exitCode = 1;
+        return;
+      }
+
+      // Validate incoming config — v2 configs have tabs, validate each tab's actions
+      const tabsToValidate = incoming.tabs
+        ? Object.values(incoming.tabs)
+        : [incoming];
+      const allErrors: string[] = [];
+      const allWarnings: string[] = [];
+      for (const tabOrConfig of tabsToValidate) {
+        const flatConfig = incoming.tabs
+          ? { ...incoming, actions: (tabOrConfig as { actions?: Action[] }).actions ?? [] }
+          : incoming;
+        const result: ValidationResult = validateConfig(flatConfig);
+        allErrors.push(...result.errors);
+        allWarnings.push(...result.warnings);
+      }
+      if (allErrors.length > 0) {
+        console.error(error("Config validation failed:"));
+        for (const e of allErrors) {
+          console.error(error(`  - ${e}`));
+        }
+        process.exitCode = 1;
+        return;
+      }
+      for (const w of allWarnings) {
+        console.warn(warn(`  - ${w}`));
+      }
+
+      // Resolve each tab in incoming config to GID-keyed entries
+      const sheets = await adapter.listSheets(sheetId);
+      const gidByName = new Map(sheets.map((s) => [s.name, String(s.gid)]));
+
+      let toWrite = incoming;
+
+      if (opts.tab) {
+        // Merge single named tab into existing config, keyed by GID
+        const existing = await adapter.readConfig(ref);
+        const tabEntry = Object.values(incoming.tabs ?? {}).find(
+          (t) => t.name === opts.tab,
+        );
+        if (!tabEntry) {
+          console.error(error(`Tab "${opts.tab}" not found in ${file}.`));
+          process.exitCode = 1;
+          return;
+        }
+        const gid = gidByName.get(opts.tab);
+        if (!gid) {
+          console.error(error(`Tab "${opts.tab}" not found in spreadsheet.`));
+          process.exitCode = 1;
+          return;
+        }
+        const base = existing ?? incoming;
+        toWrite = {
+          ...base,
+          tabs: {
+            ...(base.tabs ?? {}),
+            [gid]: tabEntry,
+          },
+        };
+      } else if (incoming.tabs) {
+        // Re-key all tabs by GID
+        const gidKeyedTabs: Record<string, typeof incoming.tabs[string]> = {};
+        for (const tabEntry of Object.values(incoming.tabs)) {
+          const gid = gidByName.get(tabEntry.name);
+          if (gid) {
+            gidKeyedTabs[gid] = tabEntry;
+          } else {
+            // Fall back to name key if GID not resolvable
+            gidKeyedTabs[tabEntry.name] = tabEntry;
+          }
+        }
+        toWrite = { ...incoming, tabs: gidKeyedTabs };
+      }
+
+      try {
+        await adapter.writeConfig(ref, toWrite);
+        const tabNote = opts.tab ? ` (tab: ${opts.tab})` : "";
+        console.log(`Config imported to ${sheetId}${tabNote}.`);
+        const tabCount = Object.keys(toWrite.tabs ?? {}).length;
+        if (tabCount > 0) {
+          console.log(
+            `  Tabs: ${Object.values(toWrite.tabs ?? {})
+              .map((t) => t.name)
+              .join(", ")}`,
+          );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(error("Failed to write config:"), msg);
         process.exitCode = 1;
       }
     });

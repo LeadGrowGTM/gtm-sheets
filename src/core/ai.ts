@@ -160,6 +160,13 @@ export async function executeAiAction(
       HOME: process.env.HOME ?? "",
       SHELL: process.env.SHELL ?? "/bin/sh",
     };
+    // On Windows, claude stores OAuth tokens under %APPDATA%. Without this,
+    // claude cannot authenticate when running with a stripped environment.
+    for (const key of ["APPDATA", "LOCALAPPDATA", "USERPROFILE", "SystemRoot", "TEMP", "TMP"]) {
+      if (process.env[key] !== undefined) {
+        aiEnv[key] = process.env[key]!;
+      }
+    }
     // In bare mode, strip auto-memory and MCP servers to keep prompts clean
     // (workaround for --bare breaking OAuth, Claude Code bug #38022)
     if (action.bare !== false) {

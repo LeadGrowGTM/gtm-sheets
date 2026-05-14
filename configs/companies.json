@@ -2,7 +2,7 @@
   "version": "2",
   "settings": {
     "concurrency": 3,
-    "rateLimit": 10,
+    "rateLimit": 5,
     "retryAttempts": 2,
     "retryBackoff": "exponential"
   },
@@ -12,77 +12,62 @@
       "columns": {
         "A": "company_name",
         "B": "website",
-        "C": "company_linkedin_url",
-        "D": "industry",
-        "E": "employees",
-        "F": "city",
-        "G": "state",
-        "H": "homepage_email",
-        "I": "tech_stack",
-        "J": "recent_news",
-        "K": "buying_signal",
-        "L": "find_website_status"
+        "C": "industry",
+        "D": "city",
+        "E": "state",
+        "F": "homepage_email",
+        "G": "tech_stack",
+        "H": "recent_news"
       },
       "actions": [
         {
           "id": "find_website",
           "name": "Find Website",
-          "type": "exec",
+          "type": "ai",
+          "runtime": "claude",
+          "model": "claude-sonnet-4-6",
+          "tools": true,
           "target": "website",
           "when": "{{row.website}} == ''",
-          "command": "spider-agent find-website --company '{{row.company_name}}' --location '{{row.city}}, {{row.state}}' --json",
-          "extract": "$.website",
-          "timeout": 60,
-          "onError": { "default": { "write": "❌" } }
-        },
-        {
-          "id": "homepage_email",
-          "name": "Homepage Email",
-          "type": "exec",
-          "target": "homepage_email",
-          "when": "{{row.homepage_email}} == '' && {{row.website}} != ''",
-          "command": "spider-agent find-email --url '{{row.website}}' --json",
-          "extract": "$.email",
-          "timeout": 60,
-          "onError": { "default": { "write": "❌" } }
+          "prompt": "Find the official website URL for {{row.company_name}} located in {{row.city}} {{row.state}}. Search the web and return only the URL (e.g. https://example.com), nothing else. If not found, return '❌'.",
+          "timeout": 60
         },
         {
           "id": "tech_stack",
           "name": "Tech Stack",
-          "type": "http",
+          "type": "exec",
           "target": "tech_stack",
           "when": "{{row.tech_stack}} == '' && {{row.website}} != ''",
-          "method": "GET",
-          "url": "https://api.builtwith.com/v21/api.json?KEY={{env.BUILTWITH_API_KEY}}&LOOKUP={{row.website}}",
-          "extract": "$.Results[0].Result.Paths[0].Technologies[*].Name",
-          "ifEmpty": "❌",
+          "command": "techsight scan {{row.website}} --mode lite --json-output",
+          "extract": "$.stacks",
+          "timeout": 60,
           "onError": { "default": { "write": "❌" } }
         },
         {
           "id": "recent_news",
           "name": "Recent News",
-          "type": "http",
+          "type": "ai",
+          "runtime": "claude",
+          "model": "claude-sonnet-4-6",
+          "tools": true,
           "target": "recent_news",
           "when": "{{row.recent_news}} == '' && {{row.company_name}} != ''",
-          "method": "GET",
-          "url": "https://serpapi.com/search.json?engine=google&q={{row.company_name}}+news&num=3&api_key={{env.SERPAPI_KEY}}",
-          "extract": "$.news_results[0].title",
-          "ifEmpty": "❌",
-          "onError": { "default": { "write": "❌" } }
+          "prompt": "Search for news about {{row.company_name}} ({{row.website}}) from the last 90 days. Return a single sentence summary of the most relevant news, or 'No recent news' if nothing found.",
+          "timeout": 60
         },
         {
-          "id": "buying_signal",
-          "name": "Buying Signal",
-          "type": "exec",
-          "target": "buying_signal",
-          "when": "{{row.buying_signal}} == '' && {{row.company_name}} != ''",
-          "command": "lg-llm-runtime run buying_signal --input '{\"company_name\": \"{{row.company_name}}\", \"website\": \"{{row.website}}\", \"industry\": \"{{row.industry}}\"}'",
-          "extract": "$.signal",
-          "timeout": 90,
-          "onError": { "default": { "write": "❌" } }
+          "id": "homepage_email",
+          "name": "Homepage Email",
+          "type": "ai",
+          "runtime": "claude",
+          "model": "claude-sonnet-4-6",
+          "tools": true,
+          "target": "homepage_email",
+          "when": "{{row.homepage_email}} == '' && {{row.website}} != ''",
+          "prompt": "Visit {{row.website}} and find a contact email address. Check the homepage, contact page, and footer. Return only the email address (e.g. hello@company.com), or '❌' if none found.",
+          "timeout": 60
         }
       ]
     }
-  },
-  "actions": []
+  }
 }

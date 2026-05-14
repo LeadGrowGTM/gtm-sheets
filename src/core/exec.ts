@@ -29,8 +29,11 @@ export async function executeCommand(
   return new Promise<ExecResult>((resolve, reject) => {
     const childEnv = env ?? {};
 
+    // Use PATH-resolved "sh" so Node.js finds Git Bash sh.exe on Windows.
+    // "/bin/sh" is a Unix absolute path that Node.js (a Windows binary) cannot resolve.
+    const shell = process.platform === "win32" ? "sh" : "/bin/sh";
     const child = execFile(
-      "/bin/sh",
+      shell,
       ["-c", command],
       {
         timeout,

@@ -2,8 +2,8 @@
   "version": "2",
   "settings": {
     "concurrency": 2,
-    "rateLimit": 5,
-    "retryAttempts": 1,
+    "rateLimit": 10,
+    "retryAttempts": 2,
     "retryBackoff": "exponential"
   },
   "tabs": {
@@ -15,38 +15,36 @@
         "C": "last_name",
         "D": "title",
         "E": "email",
-        "F": "website",
-        "G": "industry",
-        "H": "buying_signal",
-        "I": "recent_news",
-        "J": "subject",
-        "K": "body_email1",
-        "L": "body_email2",
-        "M": "body_email3",
-        "N": "copy_status"
+        "F": "industry",
+        "G": "tech_stack",
+        "H": "recent_news",
+        "I": "subject",
+        "J": "body_email1",
+        "K": "body_email2",
+        "L": "body_email3",
+        "M": "copy_status"
       },
       "actions": [
         {
           "id": "generate_copy",
-          "name": "Generate 3-Email Copy",
+          "name": "Generate Copy",
           "type": "ai",
-          "target": "copy_status",
           "runtime": "claude",
-          "model": "claude-haiku-4-5-20251001",
-          "bare": true,
-          "when": "{{row.copy_status}} == '' && {{row.email}} != ''",
-          "prompt": "You are a B2B cold email copywriter for LeadGrow. Write a 3-email cold outreach sequence.\n\nProspect:\n- Name: {{row.first_name}} {{row.last_name}}\n- Title: {{row.title}}\n- Company: {{row.company_name}}\n- Website: {{row.website}}\n- Industry: {{row.industry}}\n- Recent news: {{row.recent_news}}\n- Buying signal: {{row.buying_signal}}\n\nRules:\n- Email 1: 3-4 sentences. Pattern interrupt opening. One specific signal. Soft CTA.\n- Email 2 (follow-up, 2d later): 2-3 sentences. Different angle. Bump.\n- Email 3 (breakup, 5d later): 1-2 sentences. Polite close.\n- No fluff. No hype. No feature lists. Write like a human.\n- Subject line: no clickbait, <50 chars.\n\nReturn JSON only:\n{\"subject\": \"...\", \"body_email1\": \"...\", \"body_email2\": \"...\", \"body_email3\": \"...\"}",
+          "model": "claude-sonnet-4-6",
+          "tools": false,
+          "target": "copy_status",
+          "when": "{{row.copy_status}} == '' && {{row.company_name}} != ''",
+          "prompt": "Write a 3-email cold outreach sequence for {{row.first_name}} {{row.last_name}} ({{row.title}}) at {{row.company_name}}. Tech stack: {{row.tech_stack}}. Recent news: {{row.recent_news}}. Industry: {{row.industry}}. Rules: Email 1 = 3-4 sentences. Email 2 (Day 2) = 2-3 sentences. Email 3 (Day 5) = 1-2 sentences. No hype, no buzzwords. Conversational tone. Return JSON only, no extra text: {\"subject\": \"\", \"body_email1\": \"\", \"body_email2\": \"\", \"body_email3\": \"\", \"copy_status\": \"done\"}",
           "outputs": {
             "subject": { "type": "text" },
             "body_email1": { "type": "text" },
             "body_email2": { "type": "text" },
-            "body_email3": { "type": "text" }
+            "body_email3": { "type": "text" },
+            "copy_status": { "type": "text" }
           },
-          "timeout": 120,
-          "onError": { "default": { "write": "❌" } }
+          "timeout": 120
         }
       ]
     }
-  },
-  "actions": []
+  }
 }
